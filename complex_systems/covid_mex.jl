@@ -18,7 +18,7 @@ end
 # Graficación
 df[!,"Normal"] .= 3*df.Casos ./ maximum(df.Casos)
 scatter(
-    LinRange(0,1,195),
+    1:195,
     df.Normal,
     label = "Casos septiempre",
     markercolor=:pink,
@@ -26,7 +26,7 @@ scatter(
     ylabel = "Casos registrados"
 )
 scatter(
-    LinRange(0, 1, 195),
+    1:195,
     df.Casos,
     label="Casos septiempre",
     markercolor=:pink,
@@ -61,16 +61,23 @@ scatter(
 # #println(map(log_normal(average = 0, deviation = 0.6, normalization = 100), [1,2,3]))
 # # for elem in [1:50]:
 
+# function log_normal(x, average=0.0, deviation=1.0, normalization=1.0)
+#     a = Distributions.LogNormal(average, deviation)
+#     return normalization * Distributions.pdf(a,x)
+# end
+
 function log_normal(x, average=0.0, deviation=1.0, normalization=1.0)
-    a = Distributions.LogNormal(average, deviation)
-    return normalization * Distributions.pdf(a,x)
+    return (normalization/x)*exp(-((log(x)-average)/deviation)^2) 
 end
 
 #a = Distributions.LogNormal(1000,0.5)
-r = LinRange(0.001, 1, 195)
+r = 1:195
+n_ini = 6000
+a_ini = 1000
+s_ini = 200
 plot!(
     r,
-    [Distributions.pdf(LogNormal(-0.9109130694325547, 1.6664133995196326), x) for x in r],  
+    [log_normal(x,a_ini,s_ini,n_ini) for x in r],  
     label = "Inicial"
 )
     
@@ -78,19 +85,19 @@ function distancia(x_1,x_2)
     return (x_1-x_2)^2
 end
 
-function alg_gen(epsilon, datos, func, avg, dev, r, norm)
+function alg_gen(epsilon, datos, func, avg, dev, r, norm, k=50000)
     n = length(datos)
-    for i in 1:1000000
-        prediccion = [norm * func(x,avg,dev) for x in r]
+    for i in 1:k
+        prediccion = [func(x,avg,dev,norm) for x in r]
         delta_2 = randn()
         avg_2 = avg + randn()
         dev_2 = dev + delta_2 > 0 ? dev+delta_2 : dev
         norm_2 = norm + randn()
-        prediccion_nueva = [norm_2 * func(x, avg_2, dev_2) for x in datos]
-        # println(distancia.(prediccion, datos))
+        prediccion_nueva = [func(x, avg_2, dev_2, norm_2) for x in r]
         d1 = sum(distancia.(prediccion, datos))/n
-        # println(distancia.(prediccion_nueva, datos))
+        # println(d1)
         d2 = sum(distancia.(prediccion_nueva, datos))/n
+        # println(d2)
         # println(d2)
         # println(d1)
         # println(d2 < d1)
@@ -98,22 +105,29 @@ function alg_gen(epsilon, datos, func, avg, dev, r, norm)
         avg = d2 < d1 ? avg_2 : avg
         dev = d2 < d1 ? dev_2 : dev
         norm = d2 < d1 ? norm_2 : norm
-        if d < epsilon
-            return (norm,avg, dev)
-        end
     end
     return (norm,avg, dev)
 end
 
-(n,a,s) = alg_gen(0.5,df.Normal,log_normal,-0.9109130694325547, 1.6664133995196326,LinRange(0.001, 1, 195),3)
+(n,a,s) = alg_gen(0.0001,df.Casos,log_normal,150, 1.6664133995196326,r,6000)
 print("$n $a $s")
+# plot!(
+#     r,
+#     [n*Distributions.pdf(LogNormal(a, s), x) for x in r],  
+#     label = "Final"
+# )
+# plot!(
+#     r,
+#     [3185 * n * Distributions.pdf(LogNormal(a, s), x) for x in r],
+#     label="Final 2"
+# )
+# plot!(
+#     r,
+#     [n * Distributions.pdf(LogNormal(a, s), x) for x in r],
+#     label="Final"
+# )
 plot!(
     r,
-    [n*Distributions.pdf(LogNormal(a, s), x) for x in r],  
-    label = "Final"
-)
-plot!(
-    r,
-    [3185 * n * Distributions.pdf(LogNormal(a, s), x) for x in r],
+    [log_normal(x,a,s,n) for x in r],
     label="Final 2"
 )
