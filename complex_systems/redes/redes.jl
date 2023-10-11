@@ -63,3 +63,4 @@ function guardarRed(R::Red, formato::str)
 	# TODO: Aprender a usar archivos en julia
 end
 
+
