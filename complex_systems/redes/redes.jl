@@ -4,7 +4,6 @@ using Random
 Random.seed!(1234)
 using Graphs
 using StatsBase
-
 mutable struct Nodo
 	# index
 	idx :: Int
@@ -61,7 +60,7 @@ function setState!(n::Nodo, state::Int)::Nothing
 	return Nothing
 end
 
-function normalizationFactor(R::Red, alpha::Float16=1)::Float64
+function normalizationFactor(R::Red, alpha::Float64=1)::Float64
 	c = 0
 	for v in R.nodos
 		c += getNumNeighbors(v) ^ alpha
@@ -69,26 +68,26 @@ function normalizationFactor(R::Red, alpha::Float16=1)::Float64
 	return c
 end
 
-function probKRL(normalizer::Float64,k::Nodo,alpha::Float16=1)::Float64
+function probKRL(normalizer::Float64,k::Nodo,alpha::Float64=1)::Float64
 	# Probabilidad de Kravipsky, Redner, Leyvraz
     return normalizer * (getNumNeighbors(k) ^ alpha)
 end
 
-function selectNode(R::Red, alpha::Float16=1)::Nodo
+function selectNode(R::Red, alpha::Float64=1)::Nodo
     normalizer = normalizationFactor(R,alpha)
-    weights = [probKRL(normalizer, vertex, alpha) for vertex in R]
-    return sample(R.v, Weights(weights))
+    weights = [probKRL(normalizer, vertex, alpha) for vertex in R.nodos]
+    return sample(R.nodos, Weights(weights))
 end
 
 function createLink(R::Red, n1::Nodo, n2::Nodo, simetrico::Bool=true)
     addNeighbor(n1, n2)
     if simetrico
         addNeighbor(n2, n1)
-		append!(R.ejes,[n1,n2])
+		append!(R.ejes,[n1.idx,n2.idx])
     end
 end
 
-function createRed(n::Int,alpha::Float16=1; guardar::Bool=true)
+function createRed(n::Int,alpha::Float64=1; guardar::Bool=true)
 	# Crea los primeros dos nodos
 	n1 = Nodo(0,[1],1,1)
 	n2 = Nodo(1,[0],1,1)
@@ -98,11 +97,12 @@ function createRed(n::Int,alpha::Float16=1; guardar::Bool=true)
 		time += 1
 		old_node = selectNode(R,alpha)
 		new_node = Nodo(time, [old_node.idx],1,1)
+		push!(R.nodos,new_node)
 		createLink(R,old_node,new_node)
 	end
 	if guardar
         dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
-		nombre="data_a$alpha_n$n"
+		nombre="data_a$(alpha)_n$n"
 		guardarRed(R,dirpath,nombre)
 	end
 	return R
@@ -115,11 +115,13 @@ function guardarRed(R::Red, ruta::String="./", nombre::String="data", formato::S
     G = Graph()
     add_vertices!(G, n)
 	for i in 1:2:m
-        add_edge!(G, R.ejes[i], R.ejes[i+1])
+        # Se le añade un uno para que no cuente desde cero
+        add_edge!(G, R.ejes[i]+1, R.ejes[i+1]+1)
 	end
-	filename= nombre*formato
-    
-    export_csv(G, filename, ruta)
+	filename=nombre*formato
+	# println(filename)
+	# println(ruta)
+    export_csv(G;filename=filename, dirpath=ruta)
 end
 
 function export_cosmograph(G::Graph;filename::String="data.txt",dirpath::String="./")
@@ -137,9 +139,9 @@ function export_cosmograph(G::Graph;filename::String="data.txt",dirpath::String=
 	open(file_path,"w") do file
         write(file, content)
 	end
-    println(pwd())
+    # println(pwd())
 end
-function export_csv(G::Graph; filename::String="data.csv", dirpath::String="./")
+function export_csv(G; filename="data.csv", dirpath="./")
     # Prepara el contenido para su exportación
     content = "source,target\n"
     for e in edges(G)
@@ -150,4 +152,9 @@ function export_csv(G::Graph; filename::String="data.csv", dirpath::String="./")
         write(file, content)
     end
     # println(pwd())
+end
+
+n=100000
+for alpha in [0.5,1.5]
+	createRed(n,alpha)
 end
