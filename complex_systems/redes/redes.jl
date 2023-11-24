@@ -106,7 +106,7 @@ end
 println("uwu")
 # Generate a random layout
 
-n=1000
+n=100
 # G = circular_ladder_graph(500)
 G=Graph()
 add_vertices!(G,n)
@@ -114,17 +114,45 @@ m=n-1
 for i in 1:m
 	add_edge!(G,i,i+1)
 end
-is_directed(G)
-for v in vertices(G)
-	println(v)
+# is_directed(G)
+# for v in vertices(G)
+# 	println(v)
+# end
+# for v in edges(G)
+# 	print(src(v))
+# 	print(",")
+# 	print(dst(v))
+# 	print("\n")
+# end
+function export_cosmograph(G::Graph;filename::String="data.txt",dirpath::String="./")
+	# Prepara el contenido para su exportación
+	content="export const nodes = [\n"
+    for v in vertices(G)
+        content *= "{ id: '$v', color: [227,17,108,1] },\n"
+    end
+	content *= "]\n\nexport const links = ["
+    for e in edges(G)
+        content *= "{ source: '$(src(e))', target: '$(dst(e))' },\n"
+    end
+	content *= "]"
+	file_path=joinpath(dirpath,filename)
+	open(file_path,"w") do file
+        write(file, content)
+	end
+    println(pwd())
 end
-for v in edges(G)
-	println(v)
+function export_csv(G::Graph; filename::String="data.csv", dirpath::String="./")
+    # Prepara el contenido para su exportación
+    content = "source,target"
+    for e in edges(G)
+        content *= "$(src(e)), $(dst(e))\n"
+    end
+    content *= "]"
+    file_path = joinpath(dirpath, filename)
+    open(file_path, "w") do file
+        write(file, content)
+    end
+    println(pwd())
 end
-Y = sgtsnepi(G)
-show_embedding(Y; 
-	A = adjacency_matrix(G),        # show edges on embedding
-    # mrk_size=1,                   # control node sizes
-    # lwd_in=0.01, lwd_out=0.001, # control edge widths
-    # edge_alpha=0.03             # control edge transparency
-)
+dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
+export_csv(G; dirpath=dirpath)
