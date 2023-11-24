@@ -16,7 +16,7 @@ function probabilityFromCSV(path::String)
     return grouped2
 end
 
-path = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
+path = "./"
 archivos = ["data_a0.5_n100000.csv", "data_a1.0_n100000.csv", "data_a1.5_n100000.csv", "fb-pages-politician.csv"]
 filenames = path .* archivos
 lista = probabilityFromCSV.(filenames)

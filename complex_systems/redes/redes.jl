@@ -101,7 +101,7 @@ function createRed(n::Int,alpha::Float64=1; guardar::Bool=true)
 		createLink(R,old_node,new_node)
 	end
 	if guardar
-        dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
+        dirpath = "./"
 		nombre="data_a$(alpha)_n$n"
 		guardarRed(R,dirpath,nombre)
 	end
@@ -154,7 +154,8 @@ function export_csv(G; filename="data.csv", dirpath="./")
     # println(pwd())
 end
 
+# modificar n en caso de ser necesario
 n=100000
-for alpha in [0.5,1.5]
+for alpha in [0.5,1,1.5]
 	createRed(n,alpha)
 end
