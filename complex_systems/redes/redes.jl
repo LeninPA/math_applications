@@ -1,13 +1,19 @@
 # using PlotlyJS, LightGraphs
 # import GraphPlot  # for spring_layout
-using SGtSNEpi, Random
+using Random
 using Graphs
-using GLMakie
-GLMakie.activate!()
 
-v = [] # vértices
-s = 0 # susceptibilidad
-f = 0 # fortaleza
+mutable struct Nodo
+	# index
+	idx :: Int
+	# neighbors
+	v :: Vector{Int}
+	# state
+	s :: Int
+	# susceptibility
+	f :: Float64
+end
+
 
 """
 	Red
@@ -15,40 +21,37 @@ f = 0 # fortaleza
 	Crea una red de nodos de una gráfica, por defecto dirigida
 """
 mutable struct Red
-	nodos :: Vector{Int}
+    nodos::Vector{Nodo}
 end
 
-mutable struct Nodo
-	# neighboring vertices
-	v :: Vector{Int}
-	# state
-	s :: Int
-	# susceptibility
-	f :: Float64
-end
-function Contains(i::Nodo)
-	return true
+
+function isNeighborOf(x::Nodo,y::Nodo)
+	# x es vecino de y
+	return x.idx in y.v	
 end
 
-function AddVecino(i::Nodo, j::Nodo)
-	if v.Contains(j)
-		return false
-	else
-		append!(v,[i])
+
+function addNeighbor(i::Nodo, j::Nodo)
+	if !(isNeighborOf(i,j))
+		push!(j.v, i.idx)
 		return true
 	end
+	return false
 end
 
-function getNumVecinos(i::Nodo)
+
+function getNumNeighbors(i::Nodo)
 	return length(i.v)
 end
+
 
 function getVecino(n::Nodo, i::Int)
 	return n.v[i]
 end
 
-function setEstado!(n::Nodo, estado)
-	n.s = estado
+
+function setState!(n::Nodo, state::Int)
+    n.s = state
 end
 
 function crearRed(k::Int)
@@ -78,32 +81,6 @@ function guardarRed(R::Red, formato::String)
 	# TODO: Aprender a usar archivos en julia
 end
 
-# println("uwu")
-
-# """
-# No olvidar citar 
-# @inproceedings{pitsianis2019sgtsnepi,
-#     author = {Pitsianis, Nikos and Iliopoulos, Alexandros-Stavros and Floros, Dimitris and Sun, Xiaobai},
-#     doi = {10.1109/HPEC.2019.8916505},
-#     booktitle = {IEEE High Performance Extreme Computing Conference},
-#     month = {11},
-#     title = {{Spaceland Embedding of Sparse Stochastic Graphs}},
-#     year = {2019}
-# }
-# y 
-# @article{bezanson2017julia,
-#   title={Julia: A fresh approach to numerical computing},
-#   author={Bezanson, Jeff and Edelman, Alan and Karpinski, Stefan and Shah, Viral B},
-#   journal={SIAM review},
-#   volume={59},
-#   number={1},
-#   pages={65--98},
-#   year={2017},
-#   publisher={SIAM},
-#   url={https://doi.org/10.1137/141000671}
-# }
-# """
-println("uwu")
 # Generate a random layout
 
 n=100
@@ -143,16 +120,16 @@ function export_cosmograph(G::Graph;filename::String="data.txt",dirpath::String=
 end
 function export_csv(G::Graph; filename::String="data.csv", dirpath::String="./")
     # Prepara el contenido para su exportación
-    content = "source,target"
+    content = "source,target\n"
     for e in edges(G)
-        content *= "$(src(e)), $(dst(e))\n"
+        content *= "$(src(e)),$(dst(e))\n"
     end
     content *= "]"
     file_path = joinpath(dirpath, filename)
     open(file_path, "w") do file
         write(file, content)
     end
-    println(pwd())
+    # println(pwd())
 end
-dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
-export_csv(G; dirpath=dirpath)
+# dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
+# export_csv(G; dirpath=dirpath)
