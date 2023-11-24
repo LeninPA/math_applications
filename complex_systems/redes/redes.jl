@@ -1,7 +1,9 @@
 # using PlotlyJS, LightGraphs
 # import GraphPlot  # for spring_layout
 using Random
+Random.seed!(1234)
 using Graphs
+using StatsBase
 
 mutable struct Nodo
 	# index
@@ -22,16 +24,20 @@ end
 """
 mutable struct Red
     nodos::Vector{Nodo}
+	ejes::Vector{Int}
 end
 
+function addNode(R::Red, i::Nodo)::Bool
+    push!(R.nodos,i)
+end
 
-function isNeighborOf(x::Nodo,y::Nodo)
+function isNeighborOf(x::Nodo,y::Nodo)::Bool
 	# x es vecino de y
 	return x.idx in y.v	
 end
 
 
-function addNeighbor(i::Nodo, j::Nodo)
+function addNeighbor(i::Nodo, j::Nodo)::Bool
 	if !(isNeighborOf(i,j))
 		push!(j.v, i.idx)
 		return true
@@ -40,67 +46,82 @@ function addNeighbor(i::Nodo, j::Nodo)
 end
 
 
-function getNumNeighbors(i::Nodo)
+function getNumNeighbors(i::Nodo)::Int
 	return length(i.v)
 end
 
 
-function getVecino(n::Nodo, i::Int)
+function getVecino(n::Nodo, i::Int)::Nodo
 	return n.v[i]
 end
 
 
-function setState!(n::Nodo, state::Int)
+function setState!(n::Nodo, state::Int)::Nothing
     n.s = state
+	return Nothing
 end
 
-function crearRed(k::Int)
-	r # número aleatorio
-	for l in 1:k
-		# crear nodo con listas vacías
-		# y estado inicial s_i
-		# añadir vecinos de manera simétrica
-		# conforme va creciendo la red
-		# se puede validar que cada conexión no
-		# se repita y sea única
+function normalizationFactor(R::Red, alpha::Float16=1)::Float64
+	c = 0
+	for v in R.nodos
+		c += getNumNeighbors(v) ^ alpha
 	end
+	return c
 end
 
-function crearEnlace!(n1::Nodo,n2::Nodo, simétrico::Bool)
-	n1.addVecino(n2)
-	if simétrico
-		n2.addVecino(n1)
+function probKRL(normalizer::Float64,k::Nodo,alpha::Float16=1)::Float64
+	# Probabilidad de Kravipsky, Redner, Leyvraz
+    return normalizer * (getNumNeighbors(k) ^ alpha)
+end
+
+function selectNode(R::Red, alpha::Float16=1)::Nodo
+    normalizer = normalizationFactor(R,alpha)
+    weights = [probKRL(normalizer, vertex, alpha) for vertex in R]
+    return sample(R.v, Weights(weights))
+end
+
+function createLink(R::Red, n1::Nodo, n2::Nodo, simetrico::Bool=true)
+    addNeighbor(n1, n2)
+    if simetrico
+        addNeighbor(n2, n1)
+		append!(R.ejes,[n1,n2])
+    end
+end
+
+function createRed(n::Int,alpha::Float16=1; guardar::Bool=true)
+	# Crea los primeros dos nodos
+	n1 = Nodo(0,[1],1,1)
+	n2 = Nodo(1,[0],1,1)
+	R = Red([n1,n2], [0,1])
+	time = 1
+	for i in 1:n
+		time += 1
+		old_node = selectNode(R,alpha)
+		new_node = Nodo(time, [old_node.idx],1,1)
+		createLink(R,old_node,new_node)
 	end
+	if guardar
+        dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
+		nombre="data_a$alpha_n$n"
+		guardarRed(R,dirpath,nombre)
+	end
+	return R
 end
 
-function verRed(R::Red)
-	# TODO: Aprender a usar Networks en julia
+function guardarRed(R::Red, ruta::String="./", nombre::String="data", formato::String=".csv")
+	n = length(R.nodos)
+    m = length(R.ejes)
+
+    G = Graph()
+    add_vertices!(G, n)
+	for i in 1:2:m
+        add_edge!(G, R.ejes[i], R.ejes[i+1])
+	end
+	filename= nombre*formato
+    
+    export_csv(G, filename, ruta)
 end
 
-function guardarRed(R::Red, formato::String)
-	# TODO: Aprender a usar archivos en julia
-end
-
-# Generate a random layout
-
-n=100
-# G = circular_ladder_graph(500)
-G=Graph()
-add_vertices!(G,n)
-m=n-1
-for i in 1:m
-	add_edge!(G,i,i+1)
-end
-# is_directed(G)
-# for v in vertices(G)
-# 	println(v)
-# end
-# for v in edges(G)
-# 	print(src(v))
-# 	print(",")
-# 	print(dst(v))
-# 	print("\n")
-# end
 function export_cosmograph(G::Graph;filename::String="data.txt",dirpath::String="./")
 	# Prepara el contenido para su exportación
 	content="export const nodes = [\n"
@@ -124,12 +145,9 @@ function export_csv(G::Graph; filename::String="data.csv", dirpath::String="./")
     for e in edges(G)
         content *= "$(src(e)),$(dst(e))\n"
     end
-    content *= "]"
     file_path = joinpath(dirpath, filename)
     open(file_path, "w") do file
         write(file, content)
     end
     # println(pwd())
 end
-# dirpath = "/Users/Lenin/Documents/Programacion/Fciencias/math_applications/complex_systems/redes/"
-# export_csv(G; dirpath=dirpath)
