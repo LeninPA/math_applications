@@ -33,24 +33,30 @@ n = nrow(df3) - 1
     :Parámetro3,
     label="Serie 3"
 )
-auto1 = autocor(df1.Parámetro1)
-auto2 = autocor(df2.Parámetro2)
-auto3 = autocor(df3.Parámetro3)
+auto1 = autocor(df1.Parámetro1) .+ 0.02
+auto2 = autocor(df2.Parámetro2) .+ 0.02
+auto3 = autocor(df3.Parámetro3) .+ 0.02
 
 plot(
     1:length(auto1),
     auto1,
     label="Serie 1",
+    yaxis=:log10,
+    xaxis=:log10,
     plot_title="Autocorrelación"
 )
 plot!(
     1:length(auto2),
     auto2,
+    yaxis=:log10,
+    xaxis=:log10,
     label="Serie 2"
 )
 plot!(
     1:length(auto3),
     auto3,
+    yaxis=:log10,
+    xaxis=:log10,
     label="Serie 3"
 )
 
@@ -61,19 +67,28 @@ plot(
     1:length(f1),
     f1,
     label="Serie 1",
+    yaxis=:log10,
+    xaxis=:log10,
+    alpha=0.7,
     plot_title="Espectro de potencias"
 )
-plot(
+plot!(
     1:length(f2),
     f2,
     label="Serie 2",
+    yaxis=:log10,
+    xaxis=:log10,
+    alpha=0.7,
     plot_title="Espectro de potencias",
     color=:orange
 )
-plot(
+plot!(
     1:length(f3),
     f3,
     label="Serie 3",
+    yaxis=:log10,
+    xaxis=:log10,
+    alpha=0.7,
     plot_title="Espectro de potencias",
-    color=:green
+    color=:red
 )
