@@ -6,7 +6,7 @@ using StatsPlots
 # -------
 # Generación de la gráfica de parámetros de orden
 # -------
-
+println("Iniciando graficación")
 df1 = DataFrame(CSV.File("./complex_systems/time_series/Serie_temporal_1.dat", delim="\t\t", header=false, select=[2]))
 rename!(df1, :Column2 => :Parámetro1)
 # n = nrow(df1) - 1
@@ -40,30 +40,44 @@ rename!(df3, :Column2 => :Parámetro3)
 # -----
 
 resultado1, _ = ripserer(Cubical(df1.Parámetro1))
-display(plot(
-    resultado1,
+display(barcode(resultado1,
     title="Serie 1",
-    plot_title="Diagrama de persistencia",
-    xlabel="Nacimiento",
-    ylabel="Muerte"
+    plot_title="Código de barras"
 ))
+# display(plot(
+#     resultado1,
+#     title="Serie 1",
+#     plot_title="Diagrama de persistencia",
+#     xlabel="Nacimiento",
+#     ylabel="Muerte"
+# ))
 
 resultado2, _ = ripserer(Cubical(df2.Parámetro2))
-display(plot(
-    resultado2,
+display(barcode(resultado2,
     title="Serie 2",
-    plot_title="Diagrama de persistencia",
-    xlabel="Nacimiento",
-    ylabel="Muerte",
+    plot_title="Código de barras",
     color=[:orange]
 ))
+# display(plot(
+#     resultado2,
+#     title="Serie 2",
+#     plot_title="Diagrama de persistencia",
+#     xlabel="Nacimiento",
+#     ylabel="Muerte",
+#     color=[:orange]
+# ))
 
 resultado3, _ = ripserer(Cubical(df3.Parámetro3))
-display(plot(
-    resultado3,
+display(barcode(resultado3,
     title="Serie 3",
-    plot_title="Diagrama de persistencia",
-    xlabel="Nacimiento",
-    ylabel="Muerte",
+    plot_title="Código de barras",
     color=[:green]
 ))
+# display(plot(
+#     resultado3,
+#     title="Serie 3",
+#     plot_title="Diagrama de persistencia",
+#     xlabel="Nacimiento",
+#     ylabel="Muerte",
+#     color=[:green]
+# ))
