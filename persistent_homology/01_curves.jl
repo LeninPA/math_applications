@@ -39,11 +39,29 @@ rename!(df3, :Column2 => :Parámetro3)
 # Clasificación con base en H_0
 # -----
 
-resultado1, _ = ripserer(Cubical(df1.Parámetro1))
-display(barcode(resultado1,
-    title="Serie 1",
-    plot_title="Código de barras"
-))
+resultado1, _ = ripserer(Cubical(df1.Parámetro1); reps=true)
+min_indices = [only(birth_simplex(int)) for int in resultado1]
+min_x = eachindex(df1.Parámetro1)[min_indices]
+
+infinite_interval = only(filter(!isfinite, resultado1))
+plt = plot(
+    representative(infinite_interval),
+    df1.Parámetro1;
+    legend=false,
+    title="Representantes",
+    seriestype=:path,
+)
+
+for interval in filter(isfinite, resultado1)
+    plot!(plt, interval, df1.Parámetro1; seriestype=:path)
+end
+
+scatter!(plt, min_x, df1.Parámetro1[min_x]; color=1:6, markershape=:star)
+display(plot(plt, plot(resultado1; markercolor=1:6, markeralpha=1)))
+# display(barcode(resultado1,
+#     title="Serie 1",
+#     plot_title="Código de barras"
+# ))
 # display(plot(
 #     resultado1,
 #     title="Serie 1",
@@ -53,11 +71,11 @@ display(barcode(resultado1,
 # ))
 
 resultado2, _ = ripserer(Cubical(df2.Parámetro2))
-display(barcode(resultado2,
-    title="Serie 2",
-    plot_title="Código de barras",
-    color=[:orange]
-))
+# display(barcode(resultado2,
+#     title="Serie 2",
+#     plot_title="Código de barras",
+#     color=[:orange]
+# ))
 # display(plot(
 #     resultado2,
 #     title="Serie 2",
@@ -68,11 +86,11 @@ display(barcode(resultado2,
 # ))
 
 resultado3, _ = ripserer(Cubical(df3.Parámetro3))
-display(barcode(resultado3,
-    title="Serie 3",
-    plot_title="Código de barras",
-    color=[:green]
-))
+# display(barcode(resultado3,
+#     title="Serie 3",
+#     plot_title="Código de barras",
+#     color=[:green]
+# ))
 # display(plot(
 #     resultado3,
 #     title="Serie 3",
