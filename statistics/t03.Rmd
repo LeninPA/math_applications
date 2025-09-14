@@ -1,0 +1,168 @@
+---
+title: "Ejercicio de clase 3"
+author: "Lenin Pavón"
+date: '2025-09-14'
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+# Ejercicio 1
+
+Cargamos los archivos teniendo directorio de trabajo `statistics`.
+
+```{r setup, include=TRUE}
+indicadores <- data.frame(read.csv("data/Indicadores.csv"))
+senDistElec <- data.frame(read.csv("data/SenDistElec.csv"))
+```
+
+Vemos que como comparten la columna `ID_Distrito`, podemos fusionarlos con `merge`
+
+```{r}
+df <- merge(indicadores, senDistElec, by = "ID_Distrito")
+```
+
+# Ejercicio 2
+
+Vamos a calcular ahora el porcentaje a favor de la coalición PVEM-PT-MORENA. Como se puede votar ya sea por la coalición, candidatos comunes, o por un solo partido hay que sumar las siguientes columnas:
+
+- `PVEM.PT.MORENA`
+- `PVEM.PT`
+- `PVEM.MORENA`
+- `PVEM`
+- `PT`
+- `MORENA`
+
+```{r}
+df$aprobacion <- with(
+  df,
+  (PVEM.PT.MORENA + PVEM.PT + PVEM.MORENA + PVEM + PT + MORENA) / TOTAL_VOTOS_CALCULADOS
+)
+```
+
+# Ejercicio 3
+
+## Graficación
+
+Graficando 
+
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(aprobacion,Porcentaje1)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  theme_minimal()
+```
+Vemos que en los distritos con baja aprobación ($<0.6$) de la coalición suele haber un alto porcentaje de viviendas particulares habitadas que disponen de teléfono celular
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(aprobacion,Porcentaje2)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  theme_minimal()
+```
+
+Vemos que a muy grandes rasgos, entre mayor es la aprobación de la coalición, suele haber un mayor porcentaje de población sin afiliación a servicios de salud. 
+
+
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(aprobacion,Porcentaje3)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  theme_minimal()
+```
+
+No hay una relación clara entre el porcentaje de aprobación de la coalición y el porcentaje de hogares censales con persona de referencia mujer.
+
+# Ejercicio 4
+
+Usamos la función `describeBy`
+
+
+```{r}
+library(dplyr)
+
+df %>%
+  summarise(
+    mean   = mean(aprobacion, na.rm = TRUE),
+    median = median(aprobacion, na.rm = TRUE),
+    sd     = sd(aprobacion, na.rm = TRUE),
+    count  = n()
+  )
+```
+Vemos que no hay una mayoría de aprobación, además de que (proporcionalmente hablando) los resultados tienen una desviación estandar muy elevada.
+
+# Ejercicio 5
+
+(Johan escribí esto a las 2 de la mañana no me odies) Con base en las listas de los estados en cada circunscripción, agrupamos los datos con base en este dato y graficamos como hicimos anteriormente. 
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Definir las circunscripciones por IDs
+circunscripciones <- list(
+  circ_1 = c(2, 3, 6, 10, 15, 18, 25, 26),        # Primera
+  circ_2 = c(1, 8, 12, 19, 22, 24, 28, 32),       # Segunda
+  circ_3 = c(4, 5, 20, 23, 27, 30, 31),           # Tercera
+  circ_4 = c(7, 13, 17, 21, 29),                  # Cuarta
+  circ_5 = c(9, 14, 11, 16)                       # Quinta
+)
+
+# Crear una columna con la circunscripción correspondiente
+df <- df %>%
+  mutate(Circunscripcion = case_when(
+    ID_Entidad %in% circunscripciones$circ_1 ~ "Circunscripción 1",
+    ID_Entidad %in% circunscripciones$circ_2 ~ "Circunscripción 2",
+    ID_Entidad %in% circunscripciones$circ_3 ~ "Circunscripción 3",
+    ID_Entidad %in% circunscripciones$circ_4 ~ "Circunscripción 4",
+    ID_Entidad %in% circunscripciones$circ_5 ~ "Circunscripción 5",
+    TRUE ~ "Otro"
+  ))
+
+# Graficar scatter plots para cada circunscripción
+ggplot(df, aes(x = aprobacion, y = Porcentaje1)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  facet_wrap(~ Circunscripcion) +
+  labs(
+    title="Aprobación y Viviendas con Celular",
+    x = "Aprobación",
+    y = "Porcentaje1"
+  ) +
+  theme_minimal()
+
+```
+
+En esta primera gráfica vemos que las circunscripciones 1 y 5 no muestran cambios significactivos conforme aumenta la aprobación. Pero en las demás circunscripciones podemos observar que disminuye el porcentaje de viviendas habitadas que disponen de teléfono celular.
+
+```{r}
+ggplot(df, aes(x = aprobacion, y = Porcentaje1)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  facet_wrap(~ Circunscripcion) +
+  labs(
+    title="Aprobación y Población sin afliciación a servicios de salud",
+    x = "Aprobación",
+    y = "Porcentaje2"
+  ) +
+  theme_minimal()
+```
+
+
+En esta segunda gráfica vemos que las circunscripciones 1 y 5 no muestran cambios significactivos conforme aumenta la aprobación. Pero en las demás circunscripciones podemos observar que disminuye el porcentaje de hogares con afiliación a servicios de salud.
+
+```{r}
+ggplot(df, aes(x = aprobacion, y = Porcentaje1)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  facet_wrap(~ Circunscripcion) +
+  labs(
+    title="Aprobación y Hogares censales",
+    x = "Aprobación",
+    y = "Porcentaje3"
+  ) +
+  theme_minimal()
+```
+
+En esta última gráfica vemos que las circunscripciones 1 y 5 no muestran cambios significactivos conforme aumenta la aprobación. Pero en las demás circunscripciones podemos observar que disminuye el porcentaje de hogares censales conforme aumenta la aprobación.
