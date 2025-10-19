@@ -1,3 +1,15 @@
 # Ejercicio 7
 
-Aquí terminaré
+Para iniciar, carguemos los datos dados en el ejercicio
+## Ajuste de modelo
+### Verificación de supuestos
+### Ajuste
+### Análisis
+
+## Diferencia promedio entre peso mayor y menor
+
+TODO: Maybe estudiar la varianza entre la diferencia, es decir que el conjunto de datos $y_i-x_i$ cumple cono homosedasticidad
+
+## Especie de origen
+
+TODO: Maybe que ambas tienen medias diferentes
