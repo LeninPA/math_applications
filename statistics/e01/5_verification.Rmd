@@ -1,3 +1,31 @@
 # Ejercicio 4
 
-Aquí escribiré algo
+Antes de iniciar el ejercicio primero tenemos que cargar a `performance.csv`.
+
+TODO:Cargar datos
+
+
+## Verificación de supuestos y ajuste inicial
+
+## Transformaciones
+
+Proponemos modificar a la variable X/Y probemos con Box-Tidwell/Box-Cox, log, exp. de igual manera intentemos modificar por una constante
+
+TODO: También indicar cómo la transformación se alinea con qué supuesto
+
+Con las transformaciones anteriores, llevamos a cabo un ajuste. 
+
+TODO: Transformar la recta en curva basada en x
+
+## Visualización de las transformaciones
+
+Graficando (1) los puntos en escala original, (2) la recta de regresión de la primera sección y (3) la curva del modelo con transformaciones,
+
+## Interpretación
+
+Tomamos $R^2$ y realizando la prueba anova
+
+## Hipótesis
+
+> A mayor porcentaje de comidas gratis en la escuela es menor el desempeño de la escuela
+

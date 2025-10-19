@@ -1,3 +1,30 @@
 # Ejercicio 6
 
-Aquí escribiré otras cosas
+Antes de iniciar, cargamos los datos en `Ejercicio6B.csv`.
+
+
+## Análisis descriptivo
+
+TODO: Precisar la prueba, creo que debería ser H_0: la media de la carga viral entre las dos poblaciones es diferente, particularmente $\mu_M<\mu_{NM}$ donde $M$ es la población que aplicó el medicamento y $NM$ la población q no
+
+## Pruebas
+
+TODO: Ordenar la muestra
+TODO: Regresión lineal, obtener $\mu$, o maybe prueba $t$
+TODO: Interpretación
+
+## Segregación por edad
+
+Agrupando la población en quintiles, separando a la edad $0$ del primer quintil,
+
+### Procesamiento de datos
+
+TODO: Agrupar por edad
+TODO: Descargar datos de conapo a mitad de año
+TODO: Estandarizar (maybe too much)
+TODO: Argumentar que en realidad como provienen de 
+
+### Descripción
+TODO: Realizar la prueba de hipótesis por quintiles
+
+## Conclusión
