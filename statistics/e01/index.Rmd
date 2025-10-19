@@ -1,0 +1,12 @@
+---
+title: "Tarea 1, versión B"
+author: "Lenin Pavón Alvarez"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: article
+bibliography: [article.bib, packages.bib]
+biblio-style: nature
+link-citations: yes
+description: "Primera tarea del curso de 
+  Modelos no Paramétricos y de Regresión"
+---
