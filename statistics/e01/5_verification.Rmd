@@ -2,30 +2,151 @@
 
 Antes de iniciar el ejercicio primero tenemos que cargar a `performance.csv`.
 
-TODO:Cargar datos
+```{r, include=TRUE}
+library(lmtest)
+library(ggplot2)
+library(MASS)
+library(dplyr)
+library(latex2exp)
 
+performance <- data.frame(read.csv("data/performance.csv"))
+attach(performance)
+```
 
 ## Verificación de supuestos y ajuste inicial
 
+**Ajuste inicial.** Realizamos el ajuste, usando `lm`,
+```{r}
+fit <- lm(api00~meals)
+summary(fit)
+```
+
+Verificamos los 4 supuestos:
+
+1. Homocedasticidad
+2. Linealidad
+3. Normalidad
+4. Independencia entre los errores/observaciones
+
+**Homocedasticidad.** Utilizando la función `bptest`,
+```{r}
+lmtest::bptest(fit)
+```
+Por lo que rechazamos la hipótesis de homocedasticidad. Aplicamos la transformación Box-Cox
+
+```{r}
+bc <- boxcox(fit)
+lambda <- bc$x[which.max(bc$y)]
+performance$transform <- (performance$api00^lambda - 1) / lambda
+```
+
+```{r}
+fit2 <- lm(transform~meals, data = performance)
+summary(fit2)
+```
+
+```{r}
+lmtest::bptest(fit2)
+```
+Vemos así que no hay evidencia que soporte la hipótesis de heterocedasticidad.
+
+**Linealidad.**  Al graficar los datos,
+
+```{r}
+ggplot(performance, aes(x = meals, y = transform)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Visualización del ajuste inicial",
+    x = "Porcentaje de alumnos con comidas gratis",
+    y = "Desempeño académico"
+  ) +
+  geom_smooth(method='lm')+
+  theme_minimal()
+```
+**Normalidad.** Graficando los errores estudentizados $e_{st}$,
+
+```{r}
+ggplot(performance, aes(sample = studres(fit2))) +
+  stat_qq(alpha = 0.7, color = "steelblue") +
+  stat_qq_line() + 
+  labs(
+    title="Visualización del ajuste inicial",
+    x = "cuantiles reales",
+    y = "Cuantiles Teóricos"
+  ) +
+  theme_minimal()
+```
+
+Usando la prueba Shapiro-Wilks
+
+```{r}
+shapiro.test(studres(fit2))
+```
+Por lo que no encontramos evidencia significativa en contra del supuesto de normalidad.
+
+**Covarianza cero.** Que en este caso por la normalidad entre $\varepsilon_i,\varepsilon_j$ es independencia. Vamos primero a graficarlos,
+
+```{r}
+est <- studres(fit2)
+
+ggplot(performance, aes(x = 1:length(est), y = est)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Errores estudentizados",
+    x = TeX("$i$"),
+    y = TeX("$e_{st}$")
+  ) +
+  theme_minimal()
+```
+Graficando la autocorrrelación, vemos que la autocorrelación es practicamente cero.
+
+```{r}
+acf(est)
+```
 ## Transformaciones
 
-Proponemos modificar a la variable X/Y probemos con Box-Tidwell/Box-Cox, log, exp. de igual manera intentemos modificar por una constante
+Es así que transformamos a la variable `api00` mediante una transformación Box-Cox con parámetro cercano a $1.59$. Regresando a la escala original,
 
-TODO: También indicar cómo la transformación se alinea con qué supuesto
+```{r}
+pred_boxcox <- (lambda * predict(fit2) + 1)^(1/lambda)
+```
 
-Con las transformaciones anteriores, llevamos a cabo un ajuste. 
-
-TODO: Transformar la recta en curva basada en x
 
 ## Visualización de las transformaciones
 
-Graficando (1) los puntos en escala original, (2) la recta de regresión de la primera sección y (3) la curva del modelo con transformaciones,
+Graficando (1) los puntos en escala original, (2) la recta de regresión de la primera sección y (3) la curva, obtenemos,
+
+```{r}
+ggplot(performance, aes(x = meals, y = api00)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Visualización del ajuste inicial",
+    x = "Porcentaje de alumnos con comidas gratis",
+    y = "Desempeño académico"
+  ) +
+  geom_smooth(method='lm')+
+  geom_smooth(aes(y = pred_boxcox),color="#D55E00")+
+  theme_minimal()
+```
 
 ## Interpretación
 
-Tomamos $R^2$ y realizando la prueba anova
+Recordando los valores importantes del ajuste del modelo,
+
+```{r}
+summary(fit2)
+```
+Así $R^2=0.8239$ y la prueba $F$ de la tabla anova da $1862$ con un $p-\textrm{value}<2.2e^{-16}$ . Es así que podemos afirmar que
+
+> Con una significancia de $\alpha=0.5$ el porcentaje de alumnos con acceso a comidas gratis se relaciona de forma lineal con el puntaje del desempeño académico.
+
+> El $82.39\%$ de la variabilidad de los puntajes en desempeño académico se pueden explicar por el modelo que incluye el porcentaje de alumnos con acceso a comidas gratis.
 
 ## Hipótesis
 
 > A mayor porcentaje de comidas gratis en la escuela es menor el desempeño de la escuela
+
+Podemos encontrar una relación linear entre el desempeño de la escuela y el porcentaje de alumnos con acceso a comidas gratis en ésta. Además, encontramos que este porcentaje es capaz de explicar alrededor del $80\%$ de la varianza en el desempeño de la escuela. 
+
+Sin embargo, como no se hizo un análisis de otros factores (nivel socioeconómico, localización geográfica, etc) no es posible atribuir el desempeño de esta escuela únicamente a este factor.
 

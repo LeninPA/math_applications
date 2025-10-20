@@ -2,29 +2,161 @@
 
 Antes de iniciar, cargamos los datos en `Ejercicio6B.csv`.
 
+```{r setup, include=TRUE}
+library(lmtest)
+library(ggplot2)
+library(MASS)
+library(dplyr)
+library(latex2exp)
+
+trial <- data.frame(read.csv("data/Ejercicio6B.csv"))
+attach(performance)
+```
+
 
 ## Análisis descriptivo
 
-TODO: Precisar la prueba, creo que debería ser H_0: la media de la carga viral entre las dos poblaciones es diferente, particularmente $\mu_M<\mu_{NM}$ donde $M$ es la población que aplicó el medicamento y $NM$ la población q no
+```{r}
+ggplot(trial, aes(Med, Y)) +
+  geom_boxplot() +
+  labs(
+    title="Visualización inicial",
+    x = "Aplicación de medicamento",
+    y = "Carga viral"
+  ) +
+  theme_minimal()
+```
+Y obteniendo algunas medidas de tendencia central,
+
+```{r}
+trial %>%
+  group_by(Med, Edad) %>%
+  summarise(
+    Promedio = mean(Y, na.rm = TRUE),
+    Mediana  = median(Y, na.rm = TRUE),
+    DesvEst  = sd(Y, na.rm = TRUE),
+    n        = n()
+  )
+```
+
 
 ## Pruebas
+TODO: Precisar la prueba, creo que debería ser H_0: la media de la carga viral entre las dos poblaciones es diferente, particularmente $\mu_M<\mu_{NM}$ donde $M$ es la población que aplicó el medicamento y $NM$ la población q no
 
-TODO: Ordenar la muestra
-TODO: Regresión lineal, obtener $\mu$, o maybe prueba $t$
-TODO: Interpretación
+Sean
+$$\mu_0=\mathbb{E}[Y|\textrm{Med} =\textrm{No}]\qquad\mu_1=\mathbb{E}[Y|\textrm{Med}=\textrm{Si}]$$
+Queremos plantear que el medicamento reduce la carga viral promedio tras su aplicación. En términos de las medias anteriores,
 
-## Segregación por edad
+$$H_0: \mu_0 = \mu_1\qquad H_a:\mu_0 > \mu_1$$
 
-Agrupando la población en quintiles, separando a la edad $0$ del primer quintil,
+Particularmente podríamos modelar la carga viral como un modelo de regresión lineal simple con $M$ variable categórica valiendo $0$ con la población que no tomó el medicamento, y $1$ con los que sí. Es decir 
+
+$$Y_i=\beta_0+\beta_1M_i+\varepsilon_i$$
+por lo que la prueba sería 
+$$H_0: \beta_1 = 0\qquad H_a:\beta_1 < 0$$
+Para ello necesitamos verificar
+
+1. Homocedasticidad
+2. Normalidad
+3. Independencia entre los errores/observaciones
+
+## Prueba de hipótesis
+### Ajuste del modelo
+Para poder ajustar el modelo convertimos a $\textrm{Med}$ en una variable categórica numérica,
+
+```{r}
+trial$Med <- ifelse(trial$Med == "Si", 1, 0)
+str(trial$Med)
+```
+Con este cambio, apliquemos el ajuste
+
+```{r}
+carga_viral <- lm(Y ~ Med, data = trial)
+summary(carga_viral)
+confint(carga_viral)
+```
+
+### Comprobación de supuestos
+
+Llevemos a cabo ahora la comprobación de los supuestos antes mencionados, pero segregando por aplicación de medicamento.
+
+```{r}
+n_med <- trial$Y[trial$Med == 0]
+y_med <- trial$Y[trial$Med == 1]
+var.test(n_med, y_med)
+```
+Vemos entonces que no se cumple el supuesto de homocedasticidad. Aunque al buscar un parámetro para la transformación de Box-Cox nos da
+
+```{r}
+bc <- boxcox(carga_viral)
+lambda <- bc$x[which.max(bc$y)]
+trial$transform <- (trial$Y^lambda - 1) / lambda
+```
+Reagrupando y realizando la comparación de las variables con los datos transformados
+
+```{r}
+n_med <- trial$transform[trial$Med == 0]
+y_med <- trial$transform[trial$Med == 1]
+var.test(n_med, y_med)
+```
+Así, no cumple los supuestos para la segunda prueba que queremos aplicar. En cambio, aplicando una prueba $t$ para comparar la media de las poblaciones, 
+
+```{r}
+t.test(Y ~ Med, data = trial, var.equal = TRUE, alternative = "greater")
+```
+Nos devuelve que hay una diferencia entre las medias $\mu_0,\mu_1$; particularmente que $\mu_0>\mu_1$. 
+
+```{r}
+carga_viral <- lm(Y ~ Med, data = trial)
+summary(carga_viral)
+```
+
+### Interpretación
+
+Es así que aunque podemos observar una diferencia entre las cargas virales promedio de las poblaciones que tomaron el medicamento contra las que no, no cumplimos con las hipótesis para hacer el ajuste de regresión lineal con la variable $M$ categórica.
+
 
 ### Procesamiento de datos
 
-TODO: Agrupar por edad
-TODO: Descargar datos de conapo a mitad de año
-TODO: Estandarizar (maybe too much)
-TODO: Argumentar que en realidad como provienen de 
+Agrupando por edad vemos que no son poblaciones comparables debido a que no tienen una estructura análoga; y en los segmentos en los que sí el volumen no es el mismo entre ambos.
 
-### Descripción
-TODO: Realizar la prueba de hipótesis por quintiles
+```{r}
+trial %>%
+  group_by(Med, Edad) %>%
+  summarise(
+    mean   = mean(Y, na.rm = TRUE),
+    median = median(Y, na.rm = TRUE),
+    sd     = sd(Y, na.rm = TRUE),
+    count  = n()
+  )
+```
+Por estas diferencias no es posible llevar a cabo un análisis de la atribución al medicamento tomando en cuenta toda la población. Pese a las diferencias en volumen, tomemos a las personas de la 3a edad.
+
+## Segregación por edad
+
+Ahora, separemos los datos por edad
+```{r}
+trial60 <- subset(trial, Edad==">60")
+```
+Esto nos permite realizar el mismo ajuste que la vez pasada,
+
+```{r}
+carga_viral60 <- lm(Y ~ Med, data = trial60)
+summary(carga_viral60)
+```
+Comparando varianzas
+
+```{r}
+n_med60 <- trial60$transform[trial60$Med == 0]
+y_med60 <- trial60$transform[trial60$Med == 1]
+var.test(n_med60, y_med60)
+```
+Por lo que vemos que no cumple con el supuesto de homocedasticidad. Volviendo a realizar el análisis de las medias entre ambas poblaciones
+
+```{r}
+t.test(Y ~ Med, data = trial60, var.equal = TRUE, alternative = "greater")
+```
+Podemos observar que la población menor de 60 años estaban sesgando los datos. Así que no existe evidencia suficiente para concluir que $\mu_0>\mu_1$ en poblaciones con estructura similar.  
 
 ## Conclusión
+Ninguno de los dos ajustes cumplen con los supuestos para la realización de la segunda prueba propuesta. Comparando las medias entre las poblaciones a las que se le aplicó el medicamento, vemos que la estructura sesgó los resultados en la población original. Comparando la media en población con estructura similar, vemos que el medicamento no tiene un efecto significativo en la carga viral promedio. Así, no se le puede atribuir el impacto en la carga viral sólo al medicamento.

@@ -1,15 +1,152 @@
 # Ejercicio 7
 
-Para iniciar, carguemos los datos dados en el ejercicio
+Para iniciar, carguemos los datos dados del ejercicio
+
+```{r}
+x=c( 79,  93, 100, 105, 101,  96,  96, 109,  70,  71,  87,  75)
+y=c(113, 138, 158, 168, 157, 139, 142, 165, 107, 103, 130, 115)
+Datos6=data.frame(cbind(x,y))
+```
+
 ## Ajuste de modelo
+
+```{r}
+egg_w <- lm(y~x, data = Datos6)
+summary(egg_w)
+```
+
+Graficando,
+```{r}
+ggplot(Datos6, aes(x = x, y = y)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Pesos los huevos de 12 nidadas",
+    x = "Peso del huevo menor",
+    y = "Peso del huevo mayor"
+  ) +
+  geom_smooth(method='lm')+
+  theme_minimal()
+```
+
+
 ### Verificación de supuestos
-### Ajuste
-### Análisis
+
+Verificamos los 4 supuestos:
+
+1. Homocedasticidad
+2. Linealidad
+3. Normalidad
+4. Independencia entre los errores/observaciones
+
+**Homocedasticidad.** Utilizando la función `bptest`,
+```{r}
+lmtest::bptest(egg_w)
+```
+Por lo que no encontramos evidencia significativa en contra de la homocedasticidad. 
+**Linealidad.**  Al graficar los datos,
+
+```{r}
+ggplot(Datos6, aes(x = x, y = y)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Pesos los huevos de 12 nidadas",
+    x = "Peso del huevo menor",
+    y = "Peso del huevo mayor"
+  ) +
+  geom_smooth(method='lm')+
+  theme_minimal()
+```
+
+Vemos que cumplen una relación lineal.
+
+**Normalidad.** Graficando los errores estudentizados $e_{st}$,
+
+```{r}
+ggplot(Datos6, aes(sample = studres(egg_w))) +
+  stat_qq(alpha = 0.7, color = "steelblue") +
+  stat_qq_line() + 
+  labs(
+    title="Visualización del ajuste inicial",
+    x = "Cuantiles reales",
+    y = "Cuantiles Teóricos"
+  ) +
+  theme_minimal()
+```
+
+Usando la prueba Shapiro-Wilks
+
+```{r}
+shapiro.test(studres(egg_w))
+```
+Por lo que no encontramos evidencia significativa en contra del supuesto de normalidad.
+
+**Covarianza cero.** Que en este caso por la normalidad entre $\varepsilon_i,\varepsilon_j$ es independencia. Vamos primero a graficarlos,
+
+```{r}
+est <- studres(egg_w)
+
+ggplot(Datos6, aes(x = 1:length(est), y = est)) +
+  geom_point(alpha = 0.7, color = "steelblue") +
+  labs(
+    title="Errores estudentizados",
+    x = TeX("$i$"),
+    y = TeX("$e_{st}$")
+  ) +
+  theme_minimal()
+```
+Graficando la autocorrrelación, vemos que la autocorrelación es practicamente cero.
+
+```{r}
+acf(est)
+```
+
+Graficando la autocorrrelación, vemos que la autocorrelación es practicamente cero.
+
+Vemos entonces que el modelo cumple con los supuestos y graficamente la mayoría de los puntos aparecen en el intervalo de confianza.
 
 ## Diferencia promedio entre peso mayor y menor
 
-TODO: Maybe estudiar la varianza entre la diferencia, es decir que el conjunto de datos $y_i-x_i$ cumple cono homosedasticidad
+Veamos que la hipótesis que plantean los investigadores se puede escribir como
+
+$$y_i - x_i = \beta_0\implies y_i = \beta_0+x_i$$
+es decir que dado un modelo de regresión lineal $\beta_1=1$, la hipótesis nula sería $\beta_1\ne 1$. Reformateándolo,
+
+$$H_0:\beta_1=1\qquad H_a:\beta_1\ne 1$$
+
+Por el resultado 1.14, 
+
+```{r}
+beta1_hat <- coef(egg_w)["x"]
+se_beta1  <- summary(egg_w)$coefficients["x","Std. Error"]
+df_res    <- df.residual(egg_w)   # n-2
+
+# Estadístico t para H0: beta1 = 1
+t_stat <- (beta1_hat - 1) / se_beta1
+p_value <- 2 * pt(-abs(t_stat), df = df_res)
+
+cat("Estimador beta1_hat =", beta1_hat, "\n")
+cat("t =", t_stat, " con gl =", df_res, "\n")
+cat("p-valor (bilateral) =", p_value, "\n\n")
+
+```
+Es así que podemos afirmar que con significancia $\alpha=0.05$ podemos aseverar que la diferencia entre el huevo mayor y menor no tienen una diferencia constante.
 
 ## Especie de origen
 
-TODO: Maybe que ambas tienen medias diferentes
+Para aseverar que en las nidadas se ponen huevos de tamaños diferentes, tendríamos que comprobar que en promedio, los huevos de peso menor tienen media menor a los huevos de peso mayor. Realizando una prueba $t$
+
+```{r}
+x_new <- append(x,  80)
+y_new <- append(y, 125)
+```
+
+Comparando las medias de ambas poblaciones,
+
+```{r}
+t.test(x_new, y_new, alternative = "two.sided",var.equal = FALSE)
+```
+Podemos asegurar con significancia $\alpha=0.05$ que las muestras (los huevos menores contra los huevos mayores) tienen medias diferentes. Entonces es viable la sospecha de que las nidadas de huevos provengan de la especie Macaroni.
+
+
+
+
