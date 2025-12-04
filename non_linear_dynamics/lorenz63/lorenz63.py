@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Tarea 2: Modelo de Lorenz-63 y Matrices de Covarianza
-
-Este módulo resuelve el sistema de Lorenz-63 utilizando ODEINT y RK4,
-genera atractores extraños para varios valores del parámetro sigma y
-calcula matrices de covarianza y correlación para muestras del sistema.
-
-Cumple PEP 8 y PEP 257.
-
-Autor: <tu nombre>
 """
 
 # ============================================================
