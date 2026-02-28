@@ -1,5 +1,5 @@
 from math import cos, exp
-from numpy import arange, zeros
+from numpy import arange, zeros, fill_diagonal
 
 def f(x):
     return (2 * cos(x))/exp(x)
@@ -17,10 +17,15 @@ def poisson(x_min:float, x_max: float,
         x_i.append( x_min + i * delta_x )
     return x_i
 
-def create_sparse_matrix(n: int, m: int = 0):
-    if m == 0:
-        return zeros(n)
-    return zeros((n, m))
+def create_sparse_matrix(n: int, diag_val: float, lat_val: float):
+    M = zeros((n,n))
+    fill_diagonal(M, diag_val)
+    for i in range(n):
+        if 0 <= i - 1:
+            M[i, i - 1] = lat_val
+        if i + 1 <= n - 1:
+            M[i, i + 1] = lat_val
+    return M
 
 def main():
     x_min =  0.0
@@ -29,6 +34,7 @@ def main():
     u_n   =  0.0
     # N = 100
     print(poisson(x_min, x_max, u_0, u_n, f))
+    print(create_sparse_matrix(6, 2.0, -1.0))
 
 if __name__ == "__main__":
     main()
