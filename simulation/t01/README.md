@@ -1,0 +1,4 @@
+- Para el 3 ordenarlo de menor a mayor
+    - Sea una m.a. de 10 elementos, entonces $F_n(x)$ 
+- Para el 3, después de simular la uniforme, evaluar en la función de distribución empírica obtenida previamente,
+    - Recordando que $F^{-1}(U)\sim F$ con $U\sim U(0,1)$
