@@ -41,13 +41,20 @@ En `main.py` se encuentra el código necesario para reproducir los resultados di
 # Resultados
 ## Problema 1
 
+![Gráfica de dispersión del ejercicio 1](media/1-dispersion.png)
+![Histograma del ejercicio 1](media/1-histogram.png)
+
 Prima facia se ve uniforme si sólo se inspecciona los gráficos de dispersiones. No parece haber una dependencia a los términos anteriores y estar repartido de forma uniforme a lo largo del codominio. Sin embargo, el histograma nos hace ver que hay cierta tendencia de aglomeración en ciertos cuantiles por sobre otro; por lo que aunque parece uniforme podríamos utilizar un periodo más grande para intentar igualar la distribución de las simulaciones.
 
 ## Problema 2
 
+![Gráfica del ejercicio 2](media/2-date-close.png)
+
 Rechazamos la hipótesis nula (que es que ambas distribuciones se distribuyen de la misma manera) para los precios de la columna _Close_ debido al bajo valor del p-value.
 
 ## Problema 3
+
+![Gráfica del ejercicio 3](media/3-sim-profit.png)
 
 Usando como semilla `3259`, tomando el último precio de _Close_ y el último rendimiento simulado, se simula el precio del día posterior como `6728.774`
 
