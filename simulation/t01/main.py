@@ -2,9 +2,12 @@ from gcl import gcl, prim_root, is_prime
 from data import read_stock_data
 from plotnine import (
     aes, ggplot, labs,
-    geom_histogram, geom_point
+    geom_histogram, geom_point,
+    theme_tufte
 )
 from numpy import var, average
+from numpy.random import seed as npseed
+from random import seed as stdseed
 from ks import estadistico_ks
 from scipy.stats import uniform, kstest, chi2
 from unif import construir_inversa_generalizada, unif
@@ -20,8 +23,8 @@ def plot_unif(y: list[float], media_path: str = "media/") -> None:
         + geom_point()
         + labs(title = "Diagrama de dispersión de gcl")
     )
-    d.save(media_path + "dispersion.png")
-    h.save(media_path + "histogram.png")
+    d.save(media_path + "1-dispersion.png")
+    h.save(media_path + "1-histogram.png")
     d.show()
     h.show()
     return y
@@ -72,8 +75,11 @@ def print_ej2():
     p = (
         ggplot(df, aes(x="Date", y="Close"))
         + geom_point()
+        + labs(title="Ejercicio 2")
+        + theme_tufte()
     )
     p.show()
+    p.save("media/2-date-close.png")
     print("Rechazamos la hipótesis")
 
 def print_ej3():
@@ -89,11 +95,20 @@ def print_ej3():
     print(f"Simulamos el precio de mañana como {close[-1] + close[-1]*sims[-1]}")
     p = (
         ggplot(aes(x=range(n), y=sims))
+        + labs(title="Ejercicio 3. Simulación de rendimiento")
         + geom_point()
+        + theme_tufte()
     )
     p.show()
+    p.save("media/3-sim-profit.png")
 
 def main():
+    npseed(3259)
+    stdseed(3259)
+    print_ej1()
+    print("-"*50)
+    print_ej2()
+    print("-"*50)
     print_ej3()
 
 
