@@ -27,6 +27,9 @@ def create_sparse_matrix(n: int, diag_val: float, lat_val: float):
             M[i, i + 1] = lat_val
     return M
 
+def create_sol_vec():
+    ...
+
 def main():
     x_min =  0.0
     x_max = 10.0
