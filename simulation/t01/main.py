@@ -6,6 +6,8 @@ from plotnine import (
 )
 from numpy import var, average
 from ks import estadistico_ks
+from scipy.stats import uniform, kstest, chi2
+from unif import construir_inversa_generalizada, unif
 
 def plot_unif(y: list[float], media_path: str = "media/") -> None:
     h = (
@@ -50,12 +52,49 @@ def print_ej2():
     df = read_stock_data()
     print(df.describe())
     print("Centrándonos en la col Close, calculamos su estadístico KS")
-    print(df["Close"].to_list())
-    est = estadistico_ks(df["Close"].to_list())
+    # df["return"] = df["Close"].pct_change()
+    # lt = df[~df["return"].isnull()]["return"].to_list()
+    lt = sorted(df["Close"].to_list())
+    print(f"{min(lt)=} | {max(lt)=} ")
+    loc = min(lt)
+    scale = max(lt) - loc
+    cdf_movida = lambda x: uniform.cdf(x, loc=loc, scale=scale)
+    vals_cdf = [ cdf_movida(x) for x in lt]
+    est = estadistico_ks(vals_cdf)
     print(est)
+    print("Realizando la prueba KS")
+    print(kstest(lt, cdf_movida))
+    alfa = 0.05
+    n = len(lt)
+    print(f"Con {alfa=} y {n=}")
+    isf = chi2.isf(alfa,n)
+    print(f"{isf=}")
+    p = (
+        ggplot(df, aes(x="Date", y="Close"))
+        + geom_point()
+    )
+    p.show()
+    print("Rechazamos la hipótesis")
+
+def print_ej3():
+    df = read_stock_data()
+    close = df["Close"].to_list()
+    df["return"] = df["Close"].pct_change()
+    lt = sorted(df[~df["return"].isnull()]["return"].to_list())
+    finv = construir_inversa_generalizada(lt)
+    n = 100
+    sims = [ finv(x) for x in unif(n)]
+    print(f"El último close es {close[-1]}")
+    print(f"Tomamos la simulación de rendimiento {sims[-1]}")
+    print(f"Simulamos el precio de mañana como {close[-1] + close[-1]*sims[-1]}")
+    p = (
+        ggplot(aes(x=range(n), y=sims))
+        + geom_point()
+    )
+    p.show()
 
 def main():
-    print_ej2()
+    print_ej3()
 
 
 if __name__ == "__main__":
