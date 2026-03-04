@@ -55,8 +55,9 @@ def print_ej2():
     df = read_stock_data()
     print(df.describe())
     print("Centrándonos en la col Close, calculamos su estadístico KS")
-    # df["return"] = df["Close"].pct_change()
-    # lt = df[~df["return"].isnull()]["return"].to_list()
+    # -------------------------
+    # KS Close
+    # -------------------------
     lt = sorted(df["Close"].to_list())
     print(f"{min(lt)=} | {max(lt)=} ")
     loc = min(lt)
@@ -80,6 +81,34 @@ def print_ej2():
     )
     p.show()
     p.save("media/2-date-close.png")
+    print("Rechazamos la hipótesis")
+    # -------------------------
+    # KS Rendimientos
+    # -------------------------
+    print("*"*50)
+    df["return"] = df["Close"].pct_change()
+    lt = df[~df["return"].isnull()]["return"].to_list()
+    loc = min(lt)
+    scale = max(lt) - loc
+    cdf_movida = lambda x: uniform.cdf(x, loc=loc, scale=scale)
+    vals_cdf = [ cdf_movida(x) for x in lt]
+    est = estadistico_ks(vals_cdf)
+    print(est)
+    print("Realizando la prueba KS")
+    print(kstest(lt, cdf_movida))
+    alfa = 0.05
+    n = len(lt)
+    print(f"Con {alfa=} y {n=}")
+    isf = chi2.isf(alfa,n)
+    print(f"{isf=}")
+    q = (
+        ggplot(df, aes(x="Date", y="return"))
+        + geom_point()
+        + labs(title="Ejercicio 2. Retorno discreto")
+        + theme_tufte()
+    )
+    q.show()
+    q.save("media/2-date-return.png")
     print("Rechazamos la hipótesis")
 
 def print_ej3():
