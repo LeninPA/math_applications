@@ -12,8 +12,8 @@ function disc_random_matrix(n)
 end
 
 function main()
-  n = 1000000
-  total = 10
+  n = 10
+  total = 1000000
   solved = 0
   for i=1:total
     try
