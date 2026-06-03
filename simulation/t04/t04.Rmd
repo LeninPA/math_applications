@@ -295,13 +295,28 @@ eval_model <- function(serie){
 
 Ahora generamos la estimación de los modelos a lo largo del espacio de las
 224 combinaciones posibles para los activos MSFT y AAPL. Esto se realiza en
-una celda no incluida en el proceso final debido a que toma demasiado espacio.
+unas celdas no incluida en el proceso final debido a que toma demasiado espacio.
 
 ```{r, include = FALSE}
 tab_MSFT <- eval_model(ret_MSFT)
 ```
 ```{r, include = FALSE}
 tab_AAPL <- eval_model(ret_AAPL)
+```
+
+Vamos a guardar los resultados en un csv
+```{r}
+write.csv(
+  tab_MSFT,
+  "results/MSFT_res.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  tab_AAPL,
+  "results/AAPL_res.csv",
+  row.names = FALSE
+)
 ```
 
 # Ejercicio
