@@ -1,0 +1,320 @@
+---
+title: "Tarea 4 -- Simulación estocástica"
+author: "Lenin Pavón"
+date: "2026-06-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(quantmod)
+library(rugarch)
+```
+
+Para empezar importemos las siguientes bibliotecas:
+
+- `tidyverse`
+- `quantmod`. Para importación de datos de Yahoo Finance.
+- `rugarch`. Para creación de los modelos
+
+Ahora cargaremos 2 activos, 
+```{r}
+ticker <- c("MSFT", "AAPL")
+getSymbols(
+  Symbols = ticker,
+  src = "yahoo",
+  from = "2025-01-01",
+  auto.assign = TRUE
+)
+```
+Tenemos que ajustar los precios para ajustar por _stock split_ (cuando una
+acción se divide en más) y pago de dividendos, para lo que usamos la función
+`Ad`. Posteriormente, los juntamos en un solo dataframe. Limitaremos a los 
+```{r}
+p <- as.numeric(MSFT$"MSFT.Adjusted")
+q <- as.numeric(AAPL$"AAPL.Adjusted")
+# Precios ajustados
+n <- 200
+precios <- data.frame(
+  MSFT = p,
+  AAPL = q
+)
+# Convertir a vector numérico
+# colnames(precios) <- ticker
+head(precios)
+```
+
+# Ejercicio 1
+
+> Haga una prueba Ljung Box con lags 5, 10 y 15 individualmente para ver si 
+> los datos pueden considerarse como una muestra, posteriormente considere los 
+> rendimientos logarítmicos y adicionalmente a la prueba Ljung Box haga una 
+> prueba Akaike y grafique las funciones de autocorrelación para los lags antes 
+> mencionados.
+
+## Prueba Ljung-Box
+
+Realizaremos esta prueba de autocorrelación para determinar si tenemos una
+muestra. Definimos los lags a los que realizaremos la prueba
+```{r}
+lags <- c(5, 10, 15)
+```
+Realizamos la prueba
+```{r}
+for (name in colnames(precios)){
+  for (lag in lags) {
+    res <- Box.test(
+      precios[name],
+      lag  = lag,
+      type = "Ljung-Box"
+    )
+    cat("asset: ", name, " | lag: ", lag, "\n")
+    print(res)
+  }
+}
+```
+Observemos que se rechaza la hipótesis de que los precios se comportan
+como una muestra aleatoria. De estas pruebas, podemos proceder con el resto del
+problema. 
+
+
+## Rendimientos logarítmicos
+
+Calculemos los rendimientos logarítmicos y eliminemos los la primera fila nula
+
+```{r}
+ret_MSFT <- na.omit(diff(log(p)))
+ret_AAPL <- na.omit(diff(log(q)))
+
+ret <- data.frame(
+  MSFT = ret_MSFT,
+  AAPL = ret_AAPL
+)
+# colnames(ret) <- ticker
+head(ret)
+```
+
+### Prueba Ljung-Box
+
+Realizamos las mismas pruebas de Ljung-Box pero ahora sobre los rendimientos
+
+```{r}
+for (name in colnames(ret)){
+  for (lag in lags) {
+    res <- Box.test(
+      ret[name],
+      lag  = lag,
+      type = "Ljung-Box"
+    )
+    cat("asset: ", name, " | lag: ", lag, "\n")
+    print(res)
+  }
+}
+```
+De estos resultados vemos que sí se comporta como una muestra aleatoria.
+
+### Prueba Akaike
+
+Definimos el arreglo dónde guardaremos los valores de las pruebas de Akaike. 
+
+```{r}
+aic_vals <- numeric(30)
+```
+
+Y realizamos la prueba para cada uno de estos valores
+
+```{r}
+for (i in 1:15) {
+  res <- arima(
+    precios[name],
+    order = c(i, 0, 0)
+  )
+  aic_vals[i] <- AIC(res)
+}
+for (i in 16:30) {
+  res <- arima(
+    precios[name],
+    order = c(i - 15, 0, 0)
+  )
+  aic_vals[i] <- AIC(res)
+}
+```
+Organizando los datos de una forma tabular,
+
+```{r}
+tabla_aic <- data.frame(
+  idx  = 1:15,
+  MSFT = round(aic_vals[ 1:15], 4),
+  AAPL = round(aic_vals[16:30], 4)
+)
+print(tabla_aic)
+```
+
+Ahora veamos cual es el mejor orden para cada activo,
+
+```{r}
+best_MSFT <- which.min(aic_vals[ 1:15])
+best_AAPL <- which.min(aic_vals[16:30])
+
+cat(
+  "BestMejor modelo según AIC:\nMSFT: AR(", 
+  best_MSFT,
+  ")\nAAPL: AR(",
+  best_AAPL,
+  ")\n",
+  sep = ""
+  )
+```
+## Gráficas de autocorrelación
+
+Visualizando las gráficas de autocorrelación.
+
+```{r}
+par(mfrow = c(1, 3))
+
+for (name in colnames(ret)){
+  for (l in lags) {
+    acf(
+      ret[name],
+      lag.max = l,
+      main = cat(name, " - ACF - Lag ", l, sep = "")
+    )
+  }
+}
+
+par(mfrow = c(1, 1))
+```
+
+
+# Ejercicio 2
+
+> Genere un ciclo para evaluar distintos parámetros de los modelos 
+> $\textrm{ARMA}(m,n)-\textrm{GARCH}(p,q)$. Considere 
+> $0 \leqslant m,n \leqslant 4 y 0 \leqslant p,q \leqslant 2$. 
+> Presente la matriz con los resultados incluyendo las pruebas estadísticas a 
+> los residuales estandarizados de cada modelo así como los parámetros 
+> (ordénela de acuerdo a mayor p-value de la prueba Ljung-Box promedio). 
+> Diga qué modelo escogería para cada una de las dos series y por qué.
+
+Generando el espacio de hiperparámetros sobre el que vamos a iterar cada serie
+
+```{r}
+eval_model <- function(serie){
+  resultados <- data.frame()
+  for (cur_m in 0:4) {
+    for (cur_n in 0:4) {
+      for (cur_p in 0:2) {
+        for (cur_q in 0:2) {
+          # Saltamos iteración inválida
+          if (cur_p == 0 && cur_q == 0) { next }
+          # ID iteración
+          cat( 
+            "ARMA(", cur_m, ",", cur_n, 
+            ") GARCH(", cur_p, ",", cur_q, ")\n"
+          )
+          # Manejo de errores
+          tryCatch({
+            # Modelo GARCH
+            spec <- ugarchspec(
+              variance.model = list(
+                model = "sGARCH",
+                garchOrder = c(cur_p, cur_q)
+              ),
+              mean.model = list(
+                armaOrder = c(cur_m, cur_n),
+                include.mean = TRUE
+              ),
+              distribution.model = "norm"
+            )
+            print("Modelo GARCH generado correctamente")
+            # Ajuste
+            ajuste <- ugarchfit(
+              spec = spec,
+              data = serie,
+              solver = "hybrid"
+            )
+            print("Modelo GARCH ajustado correctamente")
+            # Residuales
+            resid_std <- residuals(
+              ajuste,
+              standardize = TRUE
+            )
+            print("Residuales estandarizados")
+            # Prueba Ljung-Box sobre residuales
+            lb_res <- Box.test(
+              resid_std,
+              lag = 15,
+              type = "Ljung-Box"
+            )
+            print("Pruebas Ljung-Box")
+            # Prueba Ljung-Box sobre residuales al cuadrado
+            lb_sq <- Box.test(
+              resid_std^2,
+              lag = 15,
+              type = "Ljung-Box"
+            )
+            print("Pruebas Ljung Box sobre el cuadrado")
+            # Criterio de información para ev. de modelos
+            ic <- infocriteria(ajuste)
+            # Versión tabular de resultados
+            resultados <- rbind(
+              resultados,
+              data.frame(
+                AR    = cur_m,
+                MA    = cur_n,
+                GARCH = cur_p,
+                ARCH  = cur_q,
+                AIC   = ic[1],
+                BIC   = ic[2],
+                LB_Resid  = lb_res$p.value,
+                LB_Resid2 = lb_sq$p.value,
+                LB_Promedio =
+                  mean(
+                    c(
+                      lb_res$p.value,
+                      lb_sq$p.value
+                    )
+                  )
+              )
+            )
+            print("Evaluado correctamente")
+          }, error = function(e) {print(e)})
+        }
+      }
+    }
+  }
+  resultados[
+    order(
+      resultados$LB_Promedio,
+      decreasing = TRUE
+    ),
+  ]
+}
+```
+
+Ahora generamos la estimación de los modelos a lo largo del espacio de las
+224 combinaciones posibles para los activos MSFT y AAPL. Esto se realiza en
+una celda no incluida en el proceso final debido a que toma demasiado espacio.
+
+```{r, include = FALSE}
+tab_MSFT <- eval_model(ret_MSFT)
+```
+```{r, include = FALSE}
+tab_AAPL <- eval_model(ret_AAPL)
+```
+
+# Ejercicio
+
+>
+
+# Ejercicio
+
+>
+
+
+# Agradecimientos
+
+Agradezco la enorme paciencia que me tuvieron a lo largo del semestre.
+Aprendí mucho más de lo que esperaba (en gran medida en contra de mi voluntad)
+y espero que me sea de utilidad a lo largo de mi vida profesional.
