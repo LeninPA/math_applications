@@ -10,13 +10,24 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(quantmod)
 library(rugarch)
+library(fitdistrplus)
+library(MASS)
+library(copula)
 ```
 
 Para empezar importemos las siguientes bibliotecas:
 
 - `tidyverse`
 - `quantmod`. Para importación de datos de Yahoo Finance.
-- `rugarch`. Para creación de los modelos
+- `rugarch`. Para creación y ajuste de los modelos ARMA, GARCH.
+- `fitdistrplus`. Para ajustes de distribuciones a los residuales.
+- `MASS`. Para más pruebas de bondad de ajuste
+
+Para que nuestro trabajo sea reproducible usaremos la semilla 
+```{r}
+set.seed(86)
+```
+
 
 Ahora cargaremos 2 activos, 
 ```{r}
@@ -319,17 +330,509 @@ write.csv(
 )
 ```
 
-# Ejercicio
+Personalmente, propongo seleccionar los modelos que permitan aumentar la 
+parsimonia de los modelos. Sobre todo debido a la inmensidad del espacio de
+hiperparámetros. 
 
->
+Para MSFT, veamos que
 
-# Ejercicio
+```{r}
+head(tab_MSFT)
+```
 
->
+Donde, debido a la similaridad en las métricas escogería
+$$\textrm{ARMA}(2,2)-\textrm{GARCH}(1,1)$$
+Para AAPL, veamos ahora que
+
+```{r}
+head(tab_AAPL)
+```
+Donde podríamos escoger a
+$$\textrm{ARMA}(1,0)-\textrm{GARCH}(1,0)$$
+# Ejercicio 3
+
+> Considerando el modelo óptimo para cada serie, escoja una distribución para 
+> los residuales. Con dicha distribución obtenga la muestra de la cópula que se 
+> utilizará para estimar dicha cópula. Utilizando máxima verosimilitud estime 
+> los parámetros de las cópulas Gaussiana, t de Student, Gumbel, Clayton y Frank. 
+> Utilizando la distancia Cramer von Mises con la cópula empírica escoja la mejor.
+
+## Ajustes
+
+Generemos los ajustes para cada activo,
+
+```{r}
+spec_msft <- ugarchspec(
+  variance.model = list(
+    model = "sGARCH",
+    garchOrder = c(2, 2)
+  ),
+  mean.model = list(
+    armaOrder = c(1, 1),
+    include.mean = TRUE
+  ),
+  distribution.model = "norm"
+)
+spec_aapl <- ugarchspec(
+  variance.model = list(
+    model = "sGARCH",
+    garchOrder = c(1, 0)
+  ),
+  mean.model = list(
+    armaOrder = c(1, 0),
+    include.mean = TRUE
+  ),
+  distribution.model = "norm"
+)
+# Ajuste
+fit_msft <- ugarchfit(
+  spec = spec_msft,
+  data = ret_MSFT,
+  solver = "hybrid"
+)
+fit_aapl <- ugarchfit(
+  spec = spec_aapl,
+  data = ret_AAPL,
+  solver = "hybrid"
+)
+```
+Con los ajustes realizados estudiemos a los residuales estandarizados
+```{r}
+z_msft <- as.numeric(residuals(fit_msft, standardize = TRUE))
+z_aapl <- as.numeric(residuals(fit_aapl, standardize = TRUE))
+```
+Veamos qué distribución se ajusta mejor
+```{r}
+ajustes_msft <- list(
+  normal   = fitdist(z_msft, "norm"),
+  t        = fitdistr(z_msft, "t"),
+  logistic = fitdist(z_msft, "logis")
+)
+
+sapply(ajustes_msft, AIC)
+```
+
+De manera análoga para el activo AAPL
+```{r}
+ajustes_aapl <- list(
+  normal   = fitdist(z_aapl, "norm"),
+  t        = fitdistr(z_aapl, "t"),
+  logistic = fitdist(z_aapl, "logis")
+)
+
+sapply(ajustes_aapl, AIC)
+```
+
+Vemos que la $t$ de Student demuestra su superioridad, muy probablemente
+debido a las colas pesadas. Así, ajustaremos con una $t$ y los juntaremos
+para la cópula
+
+```{r}
+t_msft <- fitdistr(
+  z_msft,
+  densfun = "t"
+)
+
+t_aapl <- fitdistr(
+  z_aapl,
+  densfun = "t"
+)
+
+df1 <- t_msft$estimate["df"]
+df2 <- t_aapl$estimate["df"]
+
+u <- pt(z_msft, df = df1)
+v <- pt(z_aapl, df = df2)
+
+datos_copula <- cbind(u, v)
+```
+
+Vamos a ajustar las cópulas 
+
+- Normal/Gaussiana,
+- $t$ de Student
+- Gumbel
+- Clayton
+- Frank
+- Empírica
+
+Por máxima verosimilitud
+
+```{r}
+# -----------------
+# Normal
+# -----------------
+cop_gauss <- normalCopula(
+  param = 0.5,
+  dim = 2
+)
+
+fit_gauss <- fitCopula(
+  cop_gauss,
+  datos_copula,
+  method = "ml"
+)
+# -----------------
+# t
+# -----------------
+cop_t <- tCopula(
+  param = 1,
+  dim = 2,
+  dispstr = "un",
+  df = 2, df.fixed = TRUE
+)
+
+fit_t <- fitCopula(
+  cop_t,
+  datos_copula,
+  method = "ml"
+)
+# -----------------
+# Gumbel
+# -----------------
+cop_gumbel <- gumbelCopula(dim = 2)
+
+fit_gumbel <- fitCopula(
+  cop_gumbel,
+  datos_copula,
+  method = "ml"
+)
+# -----------------
+# Clayton
+# -----------------
+cop_clayton <- claytonCopula(dim = 2)
+
+fit_clayton <- fitCopula(
+  cop_clayton,
+  datos_copula,
+  method = "ml"
+)
+# -----------------
+# Frank
+# -----------------
+cop_frank <- frankCopula(dim = 2)
+
+fit_frank <- fitCopula(
+  cop_frank,
+  datos_copula,
+  method = "ml"
+)
+# -----------------
+# Empírica
+# -----------------
+emp_cop <- empCopula(datos_copula)
+```
+
+
+## ¿Existe la mejor cópula?
+
+Definimos la medición de distancia de Craver von Mises utilizando
+la función dada por `copula`. 
+```{r}
+calcular_cvm <- function(fit, datos) {
+  cop <- fit@copula
+  gofCopula(
+    cop,
+    x = datos,
+    simulation = "mult"
+  )$statistic
+}
+```
+Para cada cópula (excepto la empírica) calculamos la distancia CvM
+```{r}
+cvm_gauss <- calcular_cvm(
+  fit_gauss,
+  datos_copula
+)
+
+cvm_clayton <- calcular_cvm(
+  fit_clayton,
+  datos_copula
+)
+
+cvm_t <- calcular_cvm(
+  fit_t,
+  datos_copula
+)
+
+cvm_gumbel <- calcular_cvm(
+  fit_gumbel,
+  datos_copula
+)
+
+cvm_frank <- calcular_cvm(
+  fit_frank,
+  datos_copula
+)
+```
+Veamos que como no se puede ajustar fácilmente para $t$, truncaremos el
+estimado de los grados de libertad a $2$. 
+
+Mostrando los resultados de una forma tabular
+
+```{r}
+resultados <- data.frame(
+  Copula = c(
+    "Gaussian",
+    "Student-t",
+    "Clayton",
+    "Gumbel",
+    "Frank"
+  ),
+  LogLik = c(
+    logLik(fit_gauss),
+    logLik(fit_t),
+    logLik(fit_clayton),
+    logLik(fit_gumbel),
+    logLik(fit_frank)
+  ),
+  CvM = c(
+    cvm_gauss,
+    cvm_t,
+    cvm_clayton,
+    cvm_gumbel,
+    cvm_frank
+  )
+)
+
+resultados <- resultados[
+  order(resultados$CvM),
+]
+
+print(resultados)
+```
+
+Así la mejor cópula es la `r resultados$Copula[1]`. Se me hace interesante que
+la Gaussiana haya ajustado mejor. Habiendo dicho eso, debido a que estamos
+usando activos que están altamente correlacionados, no haya tantos eventos
+extremos haciendo que la Gaussiana haya respondido mejor. Sin embargo, 
+la diferencia es menor a $10^{-2}$ por lo que en mayor o menor medida podríamos
+decir que sirven el mismo propósito. Por último, siento que una posible
+ventaja del uso de una cópula gaussiana es la parsimonia del modelo.
+
+# Ejercicio 4
+
+> Considerando a la cópula Gaussiana (sin importar cuál fue la mejor) y su 
+> parámetro $\rho$ obtenido vía máxima verosimilitud y con la distribución de los 
+> residuales se construye la distribución conjunta de los residuales. Obtenga 
+> 200 simulaciones normales estándar bivariadas independientes. Con el método 
+> visto en clase genere 200 simulaciones de la cópula Gaussiana con correlación 
+> $\rho$.
+
+Obtenemos la estimación mediante la cópula normal
+
+```{r}
+rho_hat <- fit_gauss@estimate
+```
+
+Generamos $n$ observaciones bivariadas independientes de la normal
+```{r}
+n <- 200
+
+z_ind <- matrix(
+  rnorm(2 * n),
+  ncol = 2
+)
+
+head(z_ind)
+```
+Comprobamos
+```{r}
+cor(z_ind)
+```
+Para proceder definimos a $A$ y obtenemos a $L$
+la matriz que se obtiene de la descomposición de Cholesky, es decir 
+
+$$A=\begin{bmatrix}1&\rho\\\rho& 1\end{bmatrix}$$
+
+que calculamos mediante
+
+```{r}
+A <- matrix(
+  c(
+    1, rho_hat,
+    rho_hat, 1
+  ),
+  nrow = 2,
+  byrow = TRUE
+)
+L <- chol(A)
+```
+
+Comprobamos que la correlación se acerque a `r rho_hat`
+```{r}
+z_corr <- z_ind %*% L
+cor(z_corr)
+```
+Simulando,
+```{r}
+u <- pnorm(z_corr[, 1])
+v <- pnorm(z_corr[, 2])
+
+copula_sim <- data.frame(
+  U = u,
+  V = v
+)
+
+head(copula_sim)
+```
+
+Graficamos
+```{r}
+plot(
+  copula_sim$U,
+  copula_sim$V,
+  pch = 19,
+  cex = 0.7,
+  main = paste(
+    "Simulación Cópula Gaussiana",
+    "rho =",
+    round(rho_hat, 3)
+  ),
+  xlab = "U",
+  ylab = "V"
+)
+```
+Adicional a la gráfica comparemos la transformación de bivariadas independientes
+a bivariada con correlación $\rho$
+
+```{r}
+resultado <- data.frame(
+  Z1 = z_ind[, 1],
+  Z2 = z_ind[, 2],
+  U = u,
+  V = v
+)
+
+head(resultado, 10)
+```
+
+# Ejercicio 5
+
+> Basado en dicha muestra genere 200 simulaciones los residuales, y 200 
+> simulaciones de los precios originales. Considerando estas últimas calcule el 
+> VaR(95%) de un portafolio compuesto por 20 % de acciones del primer activo y 
+> 80 % del segundo
+
+Pasaremos de las simulaciones obtenidas en el ejercicio anterior
+a residuales. De los residuales los convertiremos a rendimientos.
+De ahí tomaremos el VaR del portafolio.
+```{r}
+U <- copula_sim$U
+V <- copula_sim$V
+```
+
+Recordando que estimamos los grados de libertad de los residuales utilizamos la 
+inversa de la CDF
+```{r}
+eps1 <- as.numeric(qt( U, df = df1 ))
+eps2 <- as.numeric(qt( V, df = df2 ))
+```
+
+Ya que convertimos las simulaciones en residuales, guardémoslos en un dataframe
+```{r}
+residuales_sim <- data.frame(
+  eps1 = eps1,
+  eps2 = eps2
+)
+
+head(residuales_sim)
+```
+Obtenemos los parámetros de los ajustes
+```{r}
+mu_msft         <- fitted(fit_msft)
+sigma_msft      <- sigma(fit_msft)
+mu_msft_last    <- as.numeric(tail(mu_msft, 1))
+sigma_msft_last <- as.numeric(tail(sigma_msft, 1))
+
+mu_aapl         <- fitted(fit_aapl)
+sigma_aapl      <- sigma(fit_aapl)
+mu_aapl_last    <- as.numeric(tail(mu_aapl, 1))
+sigma_aapl_last <- as.numeric(tail(sigma_aapl, 1))
+```
+Obteniendo los rendimeintos a partir de estos parámetros
+```{r}
+r1_sim <- mu_msft_last + sigma_msft_last * eps1
+r2_sim <- mu_aapl_last + sigma_aapl_last * eps2
+```
+Ahora obtenemos los últimos precios de los activos
+```{r}
+p1 <- as.numeric(last(precios["MSFT"]))
+p2 <- as.numeric(last(precios["AAPL"]))
+```
+De ahí realizamos las simulaciones
+```{r}
+p1_sim <- p1 * exp(r1_sim)
+p2_sim <- p2 * exp(r2_sim)
+```
+Construyamos ahora el portafolio, definamos su composición (pesos) y
+el valor inicial
+```{r}
+w1 <- 0.20
+w2 <- 0.80
+
+v0 <- w1 * p1 + w2 * p2
+```
+De aquí obtenemos el valor total del portafolio tomando en cuenta la composición
+```{r}
+v_sim <- w1 * p1_sim + w2 * p2_sim
+```
+Obtengamos los rendimientos del portafolio a partir del valor incial
+```{r}
+r_port <- (v_sim - v0) / v0
+```
+En conmemoración de los 18 años desde la publicación de _Loss_, llamemos a
+nuestra variable de pérdida `ctrlaltdel`
+```{r}
+ctrlaltdel <- -r_port
+Loss       <- ctrlaltdel
+```
+Calculemos el VaR.
+```{r}
+var95 <- quantile( Loss, probs = 0.95 )
+cat("var95: ", var95, " | monetario: ", 1000 * var95)
+```
+Donde perderíamos alrededor de `r var95 * 100`% del valor de nuestro
+portafolio en un día dado. Personalmente, sería demasiado riesgo para mí
+para una inversión a corto plazo. Sin embargo, a largo plazo, se amortizarían
+las pérdidas.
 
 
 # Agradecimientos
 
+
 Agradezco la enorme paciencia que me tuvieron a lo largo del semestre.
 Aprendí mucho más de lo que esperaba (en gran medida en contra de mi voluntad)
 y espero que me sea de utilidad a lo largo de mi vida profesional.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
